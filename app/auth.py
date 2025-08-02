@@ -1,60 +1,67 @@
-from passlib.context import CryptContext
+from fastapi import APIRouter, Depends, HTTPException, status, Header
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from . import models
-import uuid
+from .. import models, auth, database
+from pydantic import BaseModel
 
-# Настройка хеширования паролей
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+router = APIRouter()
 
-# Функция для проверки пароля
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+class UserCreate(BaseModel):
+    username: str
+    password: str
 
-# Функция для хеширования пароля
-def get_password_hash(password):
-    return pwd_context.hash(password)
+class UserDelete(BaseModel):
+    username: str
+    password: str
 
-# Функция для создания пользователя
-def create_user(db: Session, username: str, password: str):
-    hashed_password = get_password_hash(password)
-    db_user = models.User(username=username, hashed_password=hashed_password)
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
+class Token(BaseModel):
+    token: str
+    token_type: str = "bearer"
+    welcome_message: str
 
-# Функция для аутентификации пользователя
-def authenticate_user(db: Session, username: str, password: str):
-    user = db.query(models.User).filter(models.User.username == username).first()
+@router.post("/register", response_model=dict)
+def register(user: UserCreate, db: Session = Depends(database.get_db)):
+    # Проверяем, существует ли пользователь
+    db_user = db.query(models.User).filter(models.User.username == user.username).first()
+    if db_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Пользователь с таким именем уже существует"
+        )
+    # Создаем пользователя
+    auth.create_user(db, user.username, user.password)
+    return {"message": "Пользователь успешно зарегистрирован"}
+
+@router.post("/login", response_model=Token)
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
+    # Аутентифицируем пользователя
+    user = auth.authenticate_user(db, form_data.username, form_data.password)
     if not user:
-        return False
-    if not verify_password(password, user.hashed_password):
-        return False
-    return user
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Неверное имя пользователя или пароль",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    # Создаем токен
+    token = auth.create_token(db, user.id)
+    
+    # Формируем приветственное сообщение
+    welcome_message = f"Вы успешно залогинились в систему, {user.username}!"
+    
+    return {"token": token, "token_type": "bearer", "welcome_message": welcome_message}
 
-# Функция для создания токена
-def create_token(db: Session, user_id: int):
-    token_value = str(uuid.uuid4())
-    db_token = models.Token(user_id=user_id, token=token_value)
-    db.add(db_token)
-    db.commit()
-    db.refresh(db_token)
-    return token_value
-
-# Функция для проверки токена
-def verify_token(db: Session, token: str):
-    db_token = db.query(models.Token).filter(models.Token.token == token, models.Token.is_active == True).first()
-    if not db_token:
-        return None
-    return db_token.user_id
-
-# Функция для удаления пользователя
-def delete_user(db: Session, user_id: int):
-    # Удаляем все токены пользователя
-    db.query(models.Token).filter(models.Token.user_id == user_id).delete()
+@router.post("/delete-user", response_model=dict)
+def delete_user(user: UserDelete, db: Session = Depends(database.get_db)):
+    # Аутентифицируем пользователя
+    authenticated_user = auth.authenticate_user(db, user.username, user.password)
+    if not authenticated_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Неверное имя пользователя или пароль",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     
     # Удаляем пользователя
-    db.query(models.User).filter(models.User.id == user_id).delete()
+    auth.delete_user(db, authenticated_user.id)
     
-    db.commit()
-    return True
+    return {"message": "Пользователь успешно удален"}
