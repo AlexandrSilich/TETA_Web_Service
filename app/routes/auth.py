@@ -46,7 +46,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     token = auth.create_token(db, user.id)
     
     # Формируем приветственное сообщение
-    welcome_message = f"Это учебный Web-Service TETA в рамках курса по тестированию производительности, {user.username}"
+    welcome_message = f"Вы успешно залогинились в систему, {user.username}!"
     
     return {"token": token, "token_type": "bearer", "welcome_message": welcome_message}
 
