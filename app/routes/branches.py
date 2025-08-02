@@ -7,7 +7,7 @@ import uuid
 
 router = APIRouter()
 
-@router.get("/branches", response_model=List[dict])
+@router.get("/branches", response_model=List[dict], summary="Получить список филиалов", description="Возвращает список всех филиалов.")
 def get_branches(
     response: Response,
     authorization: Optional[str] = Header(None), 
@@ -37,7 +37,7 @@ def get_branches(
     # Возвращаем список филиалов
     return models.BRANCHES
 
-@router.get("/branches/{branch_id}/sim-cards", response_model=dict)
+@router.get("/branches/{branch_id}/sim-cards", response_model=dict, summary="Получить количество доступных симкарт в конкретном филиале", description="Возвращает количество доступных симкарт в конкретном филиале.")
 def get_branch_sim_cards(
     branch_id: int, 
     authorization: Optional[str] = Header(None),
