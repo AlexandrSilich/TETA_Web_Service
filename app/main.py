@@ -56,7 +56,7 @@ app = FastAPI(
 )
 
 # Добавляем новый метод /home (первый в списке)
-@app.get("/home", tags=["Домашняя страница"])
+@app.get("/home", tags=["Домашняя страница"], summary="Стартовая страница")
 def home():
     """
     Приветственная страница сервиса.
@@ -74,7 +74,7 @@ def home():
 app.include_router(auth.router, tags=["Аутентификация"])
 app.include_router(branches.router, tags=["Филиалы"])
 
-@app.get("/", tags=["Информация"])
+@app.get("/", tags=["Информация"], summary="Информация")
 def read_root():
     return {
         "message": text_description,
