@@ -42,7 +42,7 @@ def get_current_user_id(
     "/branches", 
     response_model=dict, 
     summary="Получить список филиалов",
-    description="Возвращает список всех филиалов и устанавливает cookie x_id_session. В хедере запроса необходимо использовать Authorization: Bearer {token}, полученный при выполнении операции логина  или в swagger авторизоваться через кнопку Authorize"
+    description="Возвращает список всех филиалов. В хедере запроса необходимо использовать Authorization: Bearer {token}, полученный при выполнении операции логина  или в swagger авторизоваться через кнопку Authorize"
 )
 def get_branches(
     response: Response,
